@@ -98,6 +98,7 @@ const Login = () => {
         is_farmer: data.is_farmer,
         phone: data.phone,
         name: data.name,
+        user_id: data.user_id,
       };
 
       // Save user data to AsyncStorage

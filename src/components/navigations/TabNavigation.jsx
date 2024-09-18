@@ -10,6 +10,8 @@ import Home from '../screens/Home';
 import {UserContext} from '../context/stores/Userstore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AuctionScreen from '../screens/AuctionScreen';
+import {useNavigation} from '@react-navigation/native';
+import Wallet from '../screens/Wallet';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -26,22 +28,30 @@ const HomeNavigator = () => (
     initialRouteName={'Home'}>
     <Stack.Screen name="Home" component={Home} />
     <Stack.Screen name="AuctionScreen" component={AuctionScreen} />
+    <Stack.Screen name="Wallet" component={Wallet} />
   </Stack.Navigator>
 );
 
-const HeaderRight = ({handleLogout}) => (
-  <View style={styles.headerRight}>
-    <TouchableOpacity style={styles.headerButton}>
-      <Icon name="notifications" size={24} color={COLORS.green} />
-    </TouchableOpacity>
-    <TouchableOpacity style={styles.headerButton}>
-      <Icon name="help-circle-outline" size={24} color={COLORS.green} />
-    </TouchableOpacity>
-    <TouchableOpacity style={styles.headerButton} onPress={handleLogout}>
-      <Icon name="log-out" size={24} color={COLORS.red} />
-    </TouchableOpacity>
-  </View>
-);
+const HeaderRight = ({handleLogout, userState}) => {
+  let navigation = useNavigation();
+  return (
+    <View style={styles.headerRight}>
+      <TouchableOpacity style={styles.headerButton}>
+        <Icon name="notifications" size={24} color={COLORS.green} />
+      </TouchableOpacity>
+      {!userState.is_farmer && (
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={() => navigation.navigate('Wallet')}>
+          <Icon name="wallet" size={24} color={COLORS.green} />
+        </TouchableOpacity>
+      )}
+      <TouchableOpacity style={styles.headerButton} onPress={handleLogout}>
+        <Icon name="log-out" size={24} color={COLORS.red} />
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 const HeaderLeft = () => (
   <TouchableOpacity style={styles.headerRight}>
@@ -53,7 +63,7 @@ const HeaderLeft = () => (
   </TouchableOpacity>
 );
 
-const CustomHeader = ({handleLogout}) => {
+const CustomHeader = ({handleLogout, userState}) => {
   return (
     <SafeAreaView
       style={{
@@ -71,14 +81,15 @@ const CustomHeader = ({handleLogout}) => {
           alignItems: 'center',
         }}>
         <HeaderLeft />
-        <HeaderRight handleLogout={handleLogout} />
+        <HeaderRight handleLogout={handleLogout} userState={userState} />
       </View>
     </SafeAreaView>
   );
 };
 
 const TabNavigation = () => {
-  const {userDispatch} = useContext(UserContext);
+  const {userDispatch, userState} = useContext(UserContext);
+  let navigation = useNavigation();
   const handleLogout = async () => {
     // Remove the access token from AsyncStorage
     try {
@@ -99,7 +110,13 @@ const TabNavigation = () => {
       screenOptions={({route}) => ({
         tabBarActiveTintColor: COLORS.green,
         tabBarInactiveTintColor: 'gray',
-        header: () => <CustomHeader handleLogout={handleLogout} />,
+        header: () => (
+          <CustomHeader
+            handleLogout={handleLogout}
+            userState={userState}
+            navigation={navigation}
+          />
+        ),
         showLabel: Platform.OS == 'ios' ? false : true,
         tabBarLabelStyle: {
           fontSize: SIZES.wp('3%'), // Adjust font size if needed

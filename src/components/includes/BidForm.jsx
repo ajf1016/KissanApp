@@ -31,7 +31,7 @@ const BidForm = ({auctionId, buyer, crop, price, quantity, variety}) => {
           {
             auction_id: auctionId,
             bid_amount: bidAmount,
-            quantity: bidQty,
+            bid_quantity: bidQty,
             created_at: new Date().toISOString(),
           },
           {
@@ -41,13 +41,8 @@ const BidForm = ({auctionId, buyer, crop, price, quantity, variety}) => {
           },
         );
 
-        console.log(response.data.bid.id);
-
         // If the bid submission is successful, save it to Firebase
-        const newBidRef = ref(
-          db,
-          `auction/${buyer}/${response.data.bid.crop_name}_${response.data.bid.id}`,
-        ); // Assuming response.data.bid.id is the ID of the bid
+        const newBidRef = ref(db, `auction/${buyer}/${response.data.bid.id}`); // Assuming response.data.bid.id is the ID of the bid
         await set(newBidRef, {
           bidder_name: response.data.bid.bidder_name, // Replace with the actual bidder's name
           bid_amount: response.data.bid.bid_amount, // Adjusted to use bid_amount

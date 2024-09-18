@@ -44,7 +44,6 @@ export default function Navigation() {
   const checkUserLogIn = async () => {
     try {
       let user_data = await AsyncStorage.getItem('user');
-      console.log('NAV USER_DATA', user_data);
 
       if (user_data) {
         user_data = JSON.parse(user_data);
@@ -58,6 +57,8 @@ export default function Navigation() {
             access_token: user_data.access_token,
             is_farmer: user_data.is_farmer,
             phone: user_data.phone,
+            name: user_data.name,
+            user_id: user_data.user_id,
             // Add any other relevant user data here
           },
         });

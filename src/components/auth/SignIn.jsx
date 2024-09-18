@@ -516,8 +516,6 @@ const SignInForm = ({isFarmer}) => {
         : {is_buyer: true, gst: gstNumber, organization}),
     };
 
-    console.log('USERDATA', userData);
-
     try {
       const response = await fetch(BASE_URL + 'user_auth/register/', {
         method: 'POST',
@@ -546,7 +544,6 @@ const SignInForm = ({isFarmer}) => {
         Alert.alert('Success', 'Registration successful!, Login to continue');
         navigation.navigate('Login');
       } else {
-        console.log(data);
         Alert.alert('Error', data.message || 'Registration failed.');
       }
     } catch (error) {

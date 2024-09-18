@@ -18,8 +18,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {BASE_URL} from '../../../apiConfig';
 import {UserContext} from '../context/stores/Userstore';
 import {useNavigation} from '@react-navigation/native';
+import {COLORS, SIZES} from '../../constants/theme';
 
-const UNSPLASH_ACCESS_KEY = 'YOUR_UNSPLASH_ACCESS_KEY'; // Replace with your Unsplash API key
+const PEXELS_API_KEY =
+  'IR5E8KEUWLMsCP2wjWbJ25kVBZMGa4lTgtmRLr6E1IuxZjYkAii9V6MV';
 
 const Home = () => {
   const {userDispatch, userState} = useContext(UserContext);
@@ -29,12 +31,12 @@ const Home = () => {
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
   const [bids, setBids] = useState([]);
-  const [imageUrls, setImageUrls] = useState({});
+  const [videoUrls, setVideoUrls] = useState({});
+  const [isForm, setIsForm] = useState(false);
 
   let navigation = useNavigation();
 
-  console.log('USERUSER', userState);
-
+  console.log('userState : ', userState);
   // Load auction bids when component mounts
   useEffect(() => {
     const fetchAuctions = async () => {
@@ -43,7 +45,6 @@ const Home = () => {
         let token = userState?.access_token;
 
         if (!token) {
-          console.log('TK1', token);
           const user_data = await AsyncStorage.getItem('user');
           const parsedUserData = JSON.parse(user_data);
 
@@ -60,8 +61,6 @@ const Home = () => {
             Authorization: `Bearer ${token}`, // Pass the access token in the header
           },
         });
-
-        console.log('AUCTION LIST', response.data);
 
         // Update the bids state with the fetched auction data
         setBids(response.data.auctions);
@@ -80,30 +79,40 @@ const Home = () => {
   }, [userState]); // Run effect on userState changes
 
   // Fetch image based on crop name from Unsplash
-  const fetchImage = async crop => {
+  const fetchVideo = async crop => {
     try {
-      const response = await axios.get(
-        `https://api.unsplash.com/search/photos`,
-        {
-          params: {
-            query: crop,
-            per_page: 1,
-          },
-          headers: {
-            Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`, // Add your Unsplash Access Key
-          },
+      const response = await axios.get('https://api.pexels.com/videos/search', {
+        params: {
+          query: crop,
+          per_page: 1,
         },
-      );
-      const imageUrl = response.data.results[0]?.urls?.small;
-      setImageUrls(prevState => ({
+        headers: {
+          Authorization: PEXELS_API_KEY,
+        },
+      });
+
+      const videoUrl = response.data.videos[0]?.video_files[0]?.link;
+      const thumbnailUrl = response.data.videos[0]?.image;
+
+      setVideoUrls(prevState => ({
         ...prevState,
-        [crop]: imageUrl || 'https://via.placeholder.com/150', // Fallback image
+        [crop]: {
+          videoUrl: videoUrl || 'https://via.placeholder.com/150',
+          thumbnailUrl: thumbnailUrl || 'https://via.placeholder.com/150',
+        },
       }));
     } catch (error) {
       console.error(error);
+      setVideoUrls(prevState => ({
+        ...prevState,
+        [crop]: {
+          videoUrl: 'https://via.placeholder.com/150',
+          thumbnailUrl: 'https://via.placeholder.com/150',
+        },
+      }));
     }
   };
-  console.log(bids);
+
   // Function to create auction
   const createAuction = async () => {
     if (!variety || !cropName || !quantity || !price) {
@@ -112,7 +121,7 @@ const Home = () => {
     }
 
     // Fetch the image for the crop
-    fetchImage(cropName);
+    fetchVideo(cropName);
 
     try {
       // Get the access token from userState or AsyncStorage as fallback
@@ -128,8 +137,6 @@ const Home = () => {
           throw new Error('User is not logged in or access token missing.');
         }
       }
-
-      console.log('TK2', token);
 
       // Auction data to be sent to the API
       const auctionData = {
@@ -170,10 +177,16 @@ const Home = () => {
   };
 
   const renderBidItem = ({item}) => {
-    console.log(item);
     return (
       <View style={styles.bidBox}>
-        <Image source={{uri: item.imageUrl}} style={styles.cropImage} />
+        <Image
+          source={{
+            uri:
+              videoUrls[item.cropName]?.thumbnailUrl ||
+              'https://via.placeholder.com/150',
+          }}
+          style={styles.cropImage}
+        />
         <Text style={styles.bidText}>
           <Text style={styles.bidLabel}>Variety:</Text> {item.variety_of_crop}
         </Text>
@@ -200,7 +213,7 @@ const Home = () => {
             })
           }>
           <Text style={styles.orderButtonText}>
-            {userState.is_farmer ? 'Start Bid' : 'Watch Bid'}
+            {userState.is_farmer ? 'Start Bid' : 'Watch Your Bid'}
           </Text>
         </TouchableOpacity>
         {/* )} */}
@@ -217,16 +230,13 @@ const Home = () => {
         paddingHorizontal: '2%',
       }}>
       {userState.is_farmer && (
-        <Text style={styles.title}>Available Auctions</Text>
+        <Text style={styles.title}>Available Tenders</Text>
       )}
-      <FlatList
-        data={bids}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderBidItem}
-        ListHeaderComponent={() =>
-          !userState.is_farmer ? (
-            <View style={styles.formContainer}>
-              <Text style={styles.title}>Auction Page</Text>
+      {!userState.is_farmer ? (
+        <View style={styles.formContainer}>
+          <Text style={styles.title}>Tender Page</Text>
+          {isForm && (
+            <View>
               <TextInput
                 value={variety}
                 onChangeText={setVariety}
@@ -253,21 +263,120 @@ const Home = () => {
                 keyboardType="numeric"
                 style={styles.input}
               />
-              <TouchableOpacity onPress={createAuction} style={styles.button}>
-                <LinearGradient
+            </View>
+          )}
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+            <TouchableOpacity
+              onPress={() => setIsForm(!isForm)}
+              style={[
+                styles.gradientButton,
+                {
+                  width: isForm ? '18%' : '100%',
+                },
+              ]}>
+              {/* <LinearGradient
                   colors={['#FF9933', '#FFFFFF', '#138808']}
                   start={{x: 0, y: 0}}
                   end={{x: 1, y: 1}}
-                  style={styles.gradientButton}>
-                  <Text style={styles.buttonText}>Create New Auction</Text>
-                </LinearGradient>
+                  style={styles.gradientButton}> */}
+              <Text style={styles.buttonText}>
+                {isForm ? 'Back' : 'Create'}
+              </Text>
+              {/* </LinearGradient> */}
+            </TouchableOpacity>
+            {isForm && (
+              <TouchableOpacity
+                onPress={createAuction}
+                style={[
+                  styles.gradientButton,
+                  {
+                    width: '78%',
+                  },
+                ]}>
+                {/* <LinearGradient
+                  colors={['#FF9933', '#FFFFFF', '#138808']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 1}}
+                  style={styles.gradientButton}> */}
+                <Text style={styles.buttonText}>Submit</Text>
+                {/* </LinearGradient> */}
               </TouchableOpacity>
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={() => (
-          <Text style={styles.noBidsText}>No auctions available.</Text>
-        )}
+            )}
+          </View>
+        </View>
+      ) : null}
+      <FlatList
+        data={bids}
+        style={{
+          marginBottom: SIZES.hp('12%'),
+        }}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={renderBidItem}
+        // ListHeaderComponent={() =>
+        //   !userState.is_farmer ? (
+        //     <View style={styles.formContainer}>
+        //       <Text style={styles.title}>Auction Page</Text>
+        //       <TextInput
+        //         value={variety}
+        //         onChangeText={setVariety}
+        //         placeholder="Vegetables or Fruits"
+        //         style={styles.input}
+
+        //         // blurOnSubmit={false} // Prevents the keyboard from hiding when submit is pressed
+        //         // returnKeyType="done"
+        //       />
+        //       <TextInput
+        //         value={cropName}
+        //         onChangeText={setCropName}
+        //         placeholder="Crop Name"
+        //         style={styles.input}
+        //       />
+        //       <TextInput
+        //         value={quantity}
+        //         onChangeText={setQuantity}
+        //         placeholder="Quantity"
+        //         keyboardType="numeric"
+        //         style={styles.input}
+        //       />
+        //       <TextInput
+        //         value={price}
+        //         onChangeText={setPrice}
+        //         placeholder="Price"
+        //         keyboardType="numeric"
+        //         style={styles.input}
+        //       />
+        //       {/* <TextInput
+        //         style={styles.input}
+        //         keyboardType="numeric"
+        //         value={bidQty}
+        //         onChangeText={setBidQty}
+        //         placeholder="Enter your bid Quantity"
+        //         required
+        //       /> */}
+        //       <TouchableOpacity
+        //         onPress={createAuction}
+        //         style={styles.gradientButton}>
+        //         {/* <LinearGradient
+        //           colors={['#FF9933', '#FFFFFF', '#138808']}
+        //           start={{x: 0, y: 0}}
+        //           end={{x: 1, y: 1}}
+        //           style={styles.gradientButton}> */}
+        //         <Text style={styles.buttonText}>Create New Auction</Text>
+        //         {/* </LinearGradient> */}
+        //       </TouchableOpacity>
+        //     </View>
+        //   ) : null
+        // }
+        // ListEmptyComponent={() => (
+        //   <Text style={styles.noBidsText}>No auctions available.</Text>
+        // )}
       />
     </View>
   );
@@ -314,6 +423,8 @@ const styles = StyleSheet.create({
   gradientButton: {
     paddingVertical: 15,
     alignItems: 'center',
+    backgroundColor: COLORS.green,
+    borderRadius: 5,
   },
   buttonText: {
     color: '#fff',
